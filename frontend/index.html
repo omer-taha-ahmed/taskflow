@@ -1,0 +1,275 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow - Task Management</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            min-height: 100vh; 
+            padding: 20px; 
+        }
+        .container { 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 10px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2); 
+        }
+        header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            padding: 30px; 
+            text-align: center; 
+            border-radius: 10px 10px 0 0; 
+        }
+        header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .status { 
+            display: flex; 
+            justify-content: space-around; 
+            padding: 20px; 
+            background: #f5f5f5; 
+            border-bottom: 1px solid #ddd; 
+        }
+        .status-item { text-align: center; }
+        .status-label { font-weight: bold; color: #333; margin-bottom: 5px; }
+        .status-value { font-size: 1.2em; color: #667eea; }
+        .status-value.ok { color: #4CAF50; }
+        .status-value.error { color: #f44336; }
+        .content { padding: 30px; }
+        .section { margin-bottom: 30px; }
+        .section h2 { 
+            color: #333; 
+            margin-bottom: 15px; 
+            border-bottom: 2px solid #667eea; 
+            padding-bottom: 10px; 
+        }
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        input[type="text"] { 
+            flex: 1; 
+            padding: 12px; 
+            border: 1px solid #ddd; 
+            border-radius: 5px; 
+            font-size: 1em; 
+        }
+        button { 
+            padding: 12px 30px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 1em; 
+            transition: transform 0.2s; 
+        }
+        button:hover { transform: translateY(-2px); }
+        .task-list { list-style: none; }
+        .task-item { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 15px; 
+            background: #f9f9f9; 
+            border-radius: 5px; 
+            margin-bottom: 10px; 
+        }
+        .task-item.done { opacity: 0.6; }
+        .task-item.done .task-title { text-decoration: line-through; color: #999; }
+        .task-title { font-weight: 500; color: #333; }
+        .task-actions { display: flex; gap: 10px; }
+        .task-actions button { padding: 8px 15px; font-size: 0.9em; }
+        .api-response { 
+            background: #f0f0f0; 
+            padding: 15px; 
+            border-radius: 5px; 
+            border-left: 4px solid #667eea; 
+            margin-top: 10px; 
+            font-family: 'Courier New', monospace; 
+            white-space: pre-wrap; 
+        }
+        .error { background: #ffebee; border-left-color: #f44336; color: #c62828; }
+        .success { background: #e8f5e9; border-left-color: #4CAF50; color: #2e7d32; }
+        footer { 
+            background: #f5f5f5; 
+            padding: 20px; 
+            text-align: center; 
+            color: #666; 
+            border-top: 1px solid #ddd; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 TaskFlow</h1>
+            <p>Real-time Collaborative Task Management</p>
+        </header>
+        
+        <div class="status">
+            <div class="status-item">
+                <div class="status-label">Backend Status</div>
+                <div class="status-value" id="backendStatus">Checking...</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">API URL</div>
+                <div class="status-value" id="apiUrl" style="font-size: 0.85em;">Loading...</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Last Check</div>
+                <div class="status-value" id="lastUpdate">--:--:--</div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h2>Backend Health Check</h2>
+                <button onclick="checkHealth()">Check Backend Health</button>
+                <div id="healthResponse"></div>
+            </div>
+            
+            <div class="section">
+                <h2>Test API Endpoint</h2>
+                <button onclick="testAPI()">Test /api/test</button>
+                <div id="apiResponse"></div>
+            </div>
+            
+            <div class="section">
+                <h2>Task Manager</h2>
+                <div class="input-group">
+                    <input type="text" id="taskInput" placeholder="Enter a new task...">
+                    <button onclick="addTask()">Add Task</button>
+                </div>
+                <ul class="task-list" id="taskList"></ul>
+            </div>
+            
+            <div class="section">
+                <h2>Application Info</h2>
+                <div class="api-response success">TaskFlow Frontend: v1.0.0
+Backend: Python HTTP Server
+Status: Production Ready
+Architecture: AWS (EC2 + ALB + RDS)</div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>TaskFlow © 2026 | AWS Well-Architected Application</p>
+        </footer>
+    </div>
+    
+    <script>
+        // IMPORTANT: Replace with your ALB DNS after deployment
+        const API_BASE_URL = 'http://localhost:5000';
+        
+        let tasks = [];
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('apiUrl').textContent = API_BASE_URL;
+            checkHealth();
+            setInterval(checkHealth, 5000);
+            setInterval(updateTime, 1000);
+        });
+        
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const data = await response.json();
+                
+                document.getElementById('backendStatus').textContent = '✅ Connected';
+                document.getElementById('backendStatus').className = 'status-value ok';
+                
+                const healthHtml = `<div class="api-response success">Status: ${data.status}
+Message: ${data.message}
+Service: ${data.service}</div>`;
+                document.getElementById('healthResponse').innerHTML = healthHtml;
+            } catch (error) {
+                document.getElementById('backendStatus').textContent = '❌ Disconnected';
+                document.getElementById('backendStatus').className = 'status-value error';
+                document.getElementById('healthResponse').innerHTML = `<div class="api-response error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testAPI() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/test`);
+                const data = await response.json();
+                
+                const apiHtml = `<div class="api-response success">Status: ${data.status}
+Message: ${data.message}
+Version: ${data.version}</div>`;
+                document.getElementById('apiResponse').innerHTML = apiHtml;
+            } catch (error) {
+                document.getElementById('apiResponse').innerHTML = `<div class="api-response error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        function addTask() {
+            const input = document.getElementById('taskInput');
+            const title = input.value.trim();
+            
+            if (!title) {
+                alert('Please enter a task');
+                return;
+            }
+            
+            const task = {
+                id: Date.now(),
+                title: title,
+                status: 'todo'
+            };
+            
+            tasks.push(task);
+            input.value = '';
+            renderTasks();
+        }
+        
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            renderTasks();
+        }
+        
+        function toggleTask(id) {
+            tasks = tasks.map(t =>
+                t.id === id 
+                    ? { ...t, status: t.status === 'todo' ? 'done' : 'todo' }
+                    : t
+            );
+            renderTasks();
+        }
+        
+        function renderTasks() {
+            const taskList = document.getElementById('taskList');
+            taskList.innerHTML = '';
+            
+            if (tasks.length === 0) {
+                taskList.innerHTML = '<li style="text-align: center; color: #999; padding: 20px;">No tasks yet. Add one above!</li>';
+                return;
+            }
+            
+            tasks.forEach(task => {
+                const li = document.createElement('li');
+                li.className = `task-item ${task.status}`;
+                li.innerHTML = `
+                    <span class="task-title">${task.title}</span>
+                    <div class="task-actions">
+                        <button onclick="toggleTask(${task.id})">${task.status === 'todo' ? '✓ Done' : '⟲ Undo'}</button>
+                        <button onclick="deleteTask(${task.id})" style="background: #f44336;">Delete</button>
+                    </div>
+                `;
+                taskList.appendChild(li);
+            });
+        }
+        
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = now.toLocaleTimeString();
+        }
+        
+        document.getElementById('taskInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addTask();
+        });
+    </script>
+</body>
+</html>
